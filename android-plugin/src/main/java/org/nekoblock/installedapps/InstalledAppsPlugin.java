@@ -1,7 +1,8 @@
 package org.nekoblock.installedapps;
 
-import android.content.pm.ApplicationInfo;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
@@ -13,7 +14,9 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.ByteArrayOutputStream;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @CapacitorPlugin(name = "InstalledApps")
 public class InstalledAppsPlugin extends Plugin {
@@ -21,30 +24,21 @@ public class InstalledAppsPlugin extends Plugin {
     @PluginMethod
     public void getInstalledApps(PluginCall call) {
         PackageManager pm = getContext().getPackageManager();
-        List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+        Intent intent = new Intent(Intent.ACTION_MAIN, null);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        List<ResolveInfo> launcherApps = pm.queryIntentActivities(intent, PackageManager.GET_META_DATA);
+        Set<String> seen = new HashSet<>();
         JSArray apps = new JSArray();
-
-        for (ApplicationInfo info : packages) {
+        for (ResolveInfo info : launcherApps) {
+            String pkg = info.activityInfo.packageName;
+            if (seen.contains(pkg)) continue;
+            seen.add(pkg);
             try {
-                // Показываем только приложения установленные пользователем
-                // (у них есть installer или они не помечены как системные)
-                boolean isSystem = (info.flags & ApplicationInfo.FLAG_SYSTEM) != 0
-                                && (info.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
-
-                String installer = null;
-                try {
-                    installer = pm.getInstallerPackageName(info.packageName);
-                } catch (Exception ignored) {}
-
-                // Пропускаем если системное И нет installer
-                if (isSystem && installer == null) continue;
-
                 JSObject app = new JSObject();
-                app.put("packageName", info.packageName);
-                app.put("name", pm.getApplicationLabel(info).toString());
-
+                app.put("packageName", pkg);
+                app.put("name", info.loadLabel(pm).toString());
                 try {
-                    Drawable icon = pm.getApplicationIcon(info.packageName);
+                    Drawable icon = info.loadIcon(pm);
                     Bitmap bitmap = Bitmap.createBitmap(48, 48, Bitmap.Config.ARGB_8888);
                     Canvas canvas = new Canvas(bitmap);
                     icon.setBounds(0, 0, 48, 48);
@@ -52,13 +46,10 @@ public class InstalledAppsPlugin extends Plugin {
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     bitmap.compress(Bitmap.CompressFormat.PNG, 85, baos);
                     app.put("icon", Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP));
-                } catch (Exception e) {
-                    app.put("icon", "");
-                }
+                } catch (Exception e) { app.put("icon", ""); }
                 apps.put(app);
             } catch (Exception e) {}
         }
-
         JSObject result = new JSObject();
         result.put("apps", apps);
         call.resolve(result);
