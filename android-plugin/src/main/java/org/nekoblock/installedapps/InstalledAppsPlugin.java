@@ -26,6 +26,19 @@ public class InstalledAppsPlugin extends Plugin {
 
         for (ApplicationInfo info : packages) {
             try {
+                // Показываем только приложения установленные пользователем
+                // (у них есть installer или они не помечены как системные)
+                boolean isSystem = (info.flags & ApplicationInfo.FLAG_SYSTEM) != 0
+                                && (info.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
+
+                String installer = null;
+                try {
+                    installer = pm.getInstallerPackageName(info.packageName);
+                } catch (Exception ignored) {}
+
+                // Пропускаем если системное И нет installer
+                if (isSystem && installer == null) continue;
+
                 JSObject app = new JSObject();
                 app.put("packageName", info.packageName);
                 app.put("name", pm.getApplicationLabel(info).toString());
