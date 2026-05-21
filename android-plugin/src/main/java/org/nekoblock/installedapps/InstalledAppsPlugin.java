@@ -21,15 +21,10 @@ public class InstalledAppsPlugin extends Plugin {
     @PluginMethod
     public void getInstalledApps(PluginCall call) {
         PackageManager pm = getContext().getPackageManager();
-        List<ApplicationInfo> packages = pm.getInstalledApplications(0);
+        List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
         JSArray apps = new JSArray();
 
         for (ApplicationInfo info : packages) {
-            // Пропускаем чисто системные без пользовательских данных
-            boolean isSystem = (info.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
-            boolean isUpdated = (info.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
-            if (isSystem && !isUpdated) continue;
-
             try {
                 JSObject app = new JSObject();
                 app.put("packageName", info.packageName);
