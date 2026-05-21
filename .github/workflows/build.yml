@@ -43,6 +43,12 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Add QUERY_ALL_PACKAGES permission
+        run: |
+          sed -i 's|</manifest>|    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>\n</manifest>|' android/app/src/main/AndroidManifest.xml
+          echo "AndroidManifest.xml updated:"
+          cat android/app/src/main/AndroidManifest.xml
+
       - name: Copy InstalledApps plugin
         run: |
           PLUGIN_DIR="android/app/src/main/java/org/nekoblock/installedapps"
