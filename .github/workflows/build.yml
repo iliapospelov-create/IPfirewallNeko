@@ -9,6 +9,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,11 +27,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.2'
 
       - name: Install dependencies
         run: npm install
@@ -58,19 +57,10 @@ jobs:
           PKG=$(echo "$PKG_DIR" | sed 's|.*java/||' | tr '/' '.')
           echo "Package: $PKG"
           printf 'package %s;\n\nimport android.os.Bundle;\nimport com.getcapacitor.BridgeActivity;\nimport org.nekoblock.installedapps.InstalledAppsPlugin;\n\npublic class MainActivity extends BridgeActivity {\n  @Override\n  public void onCreate(Bundle savedInstanceState) {\n    registerPlugin(InstalledAppsPlugin.class);\n    super.onCreate(savedInstanceState);\n  }\n}\n' "$PKG" > "$MAIN"
-          echo "MainActivity updated"
           cat "$MAIN"
 
       - name: Grant gradlew execute permission
-        run: |
-          if [ -f "android/gradlew" ]; then
-            chmod +x android/gradlew
-          else
-            echo "gradlew not found, generating..."
-            cd android
-            gradle wrapper --gradle-version 8.2
-            chmod +x gradlew
-          fi
+        run: chmod +x android/gradlew
 
       - name: Build debug APK
         run: |
