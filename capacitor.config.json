@@ -1,0 +1,14 @@
+{
+  "appId": "org.ipfirewallneko.app",
+  "appName": "IPfirewallNeko",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#09090f"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}

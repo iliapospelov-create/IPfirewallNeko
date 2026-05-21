@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IPfirewallNeko</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#09090f;--s1:#111118;--s2:#18181f;--s3:#202028;--border:#2a2a38;
+  --accent:#a78bfa;--accent2:#7c3aed;
+  --danger:#f87171;--danger-bg:rgba(248,113,113,0.1);
+  --safe:#34d399;--safe-bg:rgba(52,211,153,0.1);
+  --sched:#fbbf24;--sched-bg:rgba(251,191,36,0.1);
+  --text:#e2e2f0;--text2:#7070a0;--text3:#4a4a70;
+}
+body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+.noise{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");opacity:0.4;}
+.app-shell{width:100%;max-width:480px;min-height:100vh;display:flex;flex-direction:column;position:relative;z-index:1;}
+
+/* HEADER */
+.header{padding:20px 20px 12px;position:sticky;top:0;z-index:100;background:linear-gradient(to bottom,var(--bg) 85%,transparent);}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent2),var(--accent));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 20px rgba(167,139,250,0.3);}
+.logo-text{font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;letter-spacing:-0.5px;}
+.logo-text span{color:var(--accent);}
+.export-btn{background:linear-gradient(135deg,var(--accent2),var(--accent));border:none;color:#fff;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer;letter-spacing:0.5px;box-shadow:0 0 16px rgba(124,58,237,0.4);transition:all 0.2s;}
+.export-btn:hover{transform:translateY(-1px);}
+
+/* STATS */
+.stats{display:flex;gap:6px;margin-bottom:14px;}
+.stat{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:8px 6px;text-align:center;}
+.stat-num{font-family:'Unbounded',sans-serif;font-size:18px;font-weight:700;line-height:1;}
+.stat-num.c-block{color:var(--danger);}
+.stat-num.c-allow{color:var(--safe);}
+.stat-num.c-sched{color:var(--sched);}
+.stat-label{font-size:8px;color:var(--text2);margin-top:3px;letter-spacing:0.8px;text-transform:uppercase;}
+
+/* SEARCH */
+.search-wrap{position:relative;}
+.search{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:10px 14px 10px 38px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;outline:none;transition:border-color 0.2s;}
+.search:focus{border-color:var(--accent);}
+.search::placeholder{color:var(--text3);}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none;}
+
+/* TABS */
+.filter-tabs{display:flex;gap:5px;padding:10px 20px 0;}
+.tab{padding:6px 12px;border-radius:20px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.15s;}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 12px rgba(167,139,250,0.3);}
+
+/* LIST */
+.list{flex:1;overflow-y:auto;padding:10px 20px 100px;display:flex;flex-direction:column;gap:6px;}
+.list::-webkit-scrollbar{width:3px;}
+.list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* APP ITEM */
+.app-item{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;transition:border-color 0.2s,background 0.2s;animation:fadeIn 0.3s ease both;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.app-item.m-block{border-color:rgba(248,113,113,0.3);background:linear-gradient(135deg,var(--s1),rgba(248,113,113,0.04));}
+.app-item.m-schedule{border-color:rgba(251,191,36,0.3);background:linear-gradient(135deg,var(--s1),rgba(251,191,36,0.04));}
+.app-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;border:1px solid var(--border);}
+.app-info{flex:1;min-width:0;}
+.app-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;}
+.app-pkg{font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;}
+
+/* STATUS BADGE */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;letter-spacing:0.6px;padding:3px 8px;border-radius:5px;}
+.badge-allow{background:var(--safe-bg);color:var(--safe);}
+.badge-block{background:var(--danger-bg);color:var(--danger);}
+.badge-sched{background:var(--sched-bg);color:var(--sched);}
+
+/* MODE BUTTONS */
+.mode-btns{display:flex;flex-direction:column;gap:4px;flex-shrink:0;}
+.mode-btn{
+  width:36px;height:36px;border-radius:9px;border:1.5px solid var(--border);
+  background:var(--s3);cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;
+}
+.mode-btn:hover{border-color:var(--text2);transform:scale(1.05);}
+.mode-btn.on-allow{background:var(--safe-bg);border-color:var(--safe);box-shadow:0 0 10px rgba(52,211,153,0.25);}
+.mode-btn.on-block{background:var(--danger-bg);border-color:var(--danger);box-shadow:0 0 10px rgba(248,113,113,0.25);}
+.mode-btn.on-sched{background:var(--sched-bg);border-color:var(--sched);box-shadow:0 0 10px rgba(251,191,36,0.25);}
+
+/* SCHED TIME DISPLAY in badge */
+.sched-time{font-size:9px;color:var(--sched);opacity:0.8;}
+
+/* ── BOTTOM SHEET ── */
+.overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity 0.25s;}
+.overlay.show{opacity:1;pointer-events:all;}
+.sheet{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);
+  width:100%;max-width:480px;z-index:201;
+  background:var(--s1);border:1px solid var(--border);border-radius:22px 22px 0 0;
+  padding:20px 20px 44px;
+  transition:transform 0.35s cubic-bezier(0.34,1.1,0.64,1);
+}
+.sheet.show{transform:translateX(-50%) translateY(0);}
+.sheet-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px;}
+.sheet-app{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+.sheet-app-icon{font-size:28px;width:48px;height:48px;border-radius:12px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;}
+.sheet-app-name{font-family:'Unbounded',sans-serif;font-size:13px;font-weight:700;}
+.sheet-app-pkg{font-size:10px;color:var(--text2);margin-top:2px;}
+.sheet-section{margin-bottom:18px;}
+.sheet-label{font-size:9px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;}
+
+/* TIME ROW */
+.time-row{display:flex;align-items:center;gap:10px;}
+.time-input{
+  flex:1;background:var(--s3);border:1.5px solid var(--border);border-radius:10px;
+  color:var(--text);font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;
+  padding:12px 10px;outline:none;text-align:center;transition:border-color 0.2s;
+}
+.time-input:focus{border-color:var(--sched);box-shadow:0 0 0 3px rgba(251,191,36,0.1);}
+.time-sep{color:var(--text2);font-size:18px;font-weight:700;}
+
+/* DAYS */
+.days-row{display:flex;gap:5px;}
+.day-btn{
+  flex:1;padding:8px 0;border-radius:8px;border:1.5px solid var(--border);
+  background:var(--s3);color:var(--text2);font-family:'JetBrains Mono',monospace;
+  font-size:10px;font-weight:700;cursor:pointer;transition:all 0.15s;text-align:center;
+}
+.day-btn.on{background:var(--sched-bg);border-color:var(--sched);color:var(--sched);}
+
+/* HINT */
+.sheet-hint{font-size:10px;color:var(--text3);line-height:1.6;padding:10px 12px;background:var(--s2);border-radius:8px;border:1px solid var(--border);}
+.sheet-hint b{color:var(--sched);}
+
+/* SHEET SAVE BTN */
+.sheet-save{
+  width:100%;padding:14px;border-radius:12px;border:none;margin-top:16px;
+  background:linear-gradient(135deg,var(--accent2),var(--accent));
+  color:#fff;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;
+  cursor:pointer;letter-spacing:0.5px;box-shadow:0 0 20px rgba(124,58,237,0.35);
+  transition:all 0.2s;
+}
+.sheet-save:hover{transform:translateY(-1px);}
+
+/* EXPORT MODAL */
+.modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s;}
+.modal-overlay.show{opacity:1;pointer-events:all;}
+.modal{background:var(--s1);border:1px solid var(--border);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px 20px 44px;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.34,1.2,0.64,1);}
+.modal-overlay.show .modal{transform:translateY(0);}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;}
+.modal-title{font-family:'Unbounded',sans-serif;font-size:14px;margin-bottom:6px;}
+.modal-sub{font-size:11px;color:var(--text2);margin-bottom:14px;line-height:1.5;}
+.json-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:11px;line-height:1.7;color:#a5b4fc;max-height:260px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;margin-bottom:14px;}
+.modal-actions{display:flex;gap:8px;}
+.btn{flex:1;padding:13px;border-radius:10px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all 0.2s;}
+.btn-copy{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;box-shadow:0 0 16px rgba(124,58,237,0.4);}
+.btn-copy:hover{transform:translateY(-1px);}
+.btn-close{background:var(--s3);color:var(--text2);}
+
+/* TOAST */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--safe);color:#000;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;padding:10px 20px;border-radius:20px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.cat-bg{position:fixed;bottom:20px;right:20px;font-size:32px;opacity:0.05;pointer-events:none;z-index:0;animation:float 4s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+.empty{text-align:center;padding:60px 20px;color:var(--text2);}
+.empty-icon{font-size:40px;margin-bottom:12px;}
+.empty-text{font-size:12px;}
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="cat-bg">🐱</div>
+
+<div class="app-shell">
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">
+        <div class="logo-icon">🐱</div>
+        <div class="logo-text">IPfirewall<span>Neko</span></div>
+      </div>
+      <button class="export-btn" onclick="openExport()">ЭКСПОРТ JSON</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-num" id="s-total">0</div><div class="stat-label">Всего</div></div>
+      <div class="stat"><div class="stat-num c-allow" id="s-allow">0</div><div class="stat-label">Allow</div></div>
+      <div class="stat"><div class="stat-num c-block" id="s-block">0</div><div class="stat-label">Block</div></div>
+      <div class="stat"><div class="stat-num c-sched" id="s-sched">0</div><div class="stat-label">Sched</div></div>
+    </div>
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input class="search" type="text" id="search" placeholder="Поиск..." oninput="renderList()"/>
+    </div>
+  </div>
+  <div class="filter-tabs">
+    <button class="tab active" onclick="setTab('all',this)">Все</button>
+    <button class="tab" onclick="setTab('allow',this)">✅ Allow</button>
+    <button class="tab" onclick="setTab('block',this)">🚫 Block</button>
+    <button class="tab" onclick="setTab('schedule',this)">🕐 Sched</button>
+  </div>
+  <div class="list" id="app-list"></div>
+</div>
+
+<!-- SCHEDULE BOTTOM SHEET -->
+<div class="overlay" id="sched-overlay" onclick="closeSheet()"></div>
+<div class="sheet" id="sched-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-app">
+    <div class="sheet-app-icon" id="sh-icon"></div>
+    <div>
+      <div class="sheet-app-name" id="sh-name"></div>
+      <div class="sheet-app-pkg" id="sh-pkg"></div>
+    </div>
+  </div>
+  <div class="sheet-section">
+    <div class="sheet-label">🕐 Блокировать с — по</div>
+    <div class="time-row">
+      <input class="time-input" type="time" id="sh-from" value="22:00"/>
+      <span class="time-sep">→</span>
+      <input class="time-input" type="time" id="sh-to" value="07:00"/>
+    </div>
+  </div>
+  <div class="sheet-section">
+    <div class="sheet-label">📅 Дни недели</div>
+    <div class="days-row" id="sh-days"></div>
+  </div>
+  <div class="sheet-hint">
+    Приложение будет заблокировано <b>в указанный промежуток</b>.<br>
+    Пример: <b>22:00 → 07:00</b> = ночной режим (не работает ночью).
+  </div>
+  <button class="sheet-save" onclick="saveSheet()">✓ Сохранить расписание</button>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-overlay" id="export-modal" onclick="closeExport(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">sing-box фрагмент</div>
+    <div class="modal-sub">Настройки NekoBox → Конфигурация sing-box → вставить JSON и сохранить</div>
+    <div class="json-box" id="json-output"></div>
+    <div class="modal-actions">
+      <button class="btn btn-copy" onclick="copyJson()">📋 Копировать</button>
+      <button class="btn btn-close" onclick="closeModal()">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="capacitor.js" onerror="console.log('capacitor.js not found - running in browser mode')"></script>
+<script>
+const DAYS_LABELS = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+// ── NATIVE APP LOADING ──
+// В браузере используется мок, в APK — реальный список с телефона
+async function loadInstalledApps() {
+  try {
+    // Пробуем вызвать нативный плагин InstalledApps
+    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+      const result = await window.Capacitor.Plugins.InstalledApps.getInstalledApps();
+      // result.apps = [{name, packageName, icon (base64)}]
+      return result.apps
+        .filter(a => a.packageName && !a.packageName.startsWith('com.android.') && !a.packageName.startsWith('android.'))
+        .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+        .map(a => ({
+          name: a.name || a.packageName,
+          pkg: a.packageName,
+          icon: a.icon ? `<img src="data:image/png;base64,${a.icon}" style="width:100%;height:100%;border-radius:8px;object-fit:cover;">` : '📱',
+          isNative: true
+        }));
+    }
+  } catch (e) {
+    console.log('InstalledApps plugin not available, using mock:', e);
+  }
+  // Фоллбек — мок для тестирования в браузере
+  return null;
+}
+
+const MOCK_APPS = [
+  {name:'Telegram',pkg:'org.telegram.messenger',icon:'✈️'},
+  {name:'WhatsApp',pkg:'com.whatsapp',icon:'💬'},
+  {name:'Instagram',pkg:'com.instagram.android',icon:'📸'},
+  {name:'YouTube',pkg:'com.google.android.youtube',icon:'▶️'},
+  {name:'TikTok',pkg:'com.zhiliaoapp.musically',icon:'🎵'},
+  {name:'VK',pkg:'com.vkontakte.android',icon:'🔵'},
+  {name:'Chrome',pkg:'com.android.chrome',icon:'🌐'},
+  {name:'Firefox',pkg:'org.mozilla.firefox',icon:'🦊'},
+  {name:'Gmail',pkg:'com.google.android.gm',icon:'📧'},
+  {name:'Maps',pkg:'com.google.android.apps.maps',icon:'🗺️'},
+  {name:'Spotify',pkg:'com.spotify.music',icon:'🎧'},
+  {name:'Netflix',pkg:'com.netflix.mediaclient',icon:'🎬'},
+  {name:'Twitter / X',pkg:'com.twitter.android',icon:'🐦'},
+  {name:'Discord',pkg:'com.discord',icon:'🎮'},
+  {name:'Zoom',pkg:'us.zoom.videomeetings',icon:'📹'},
+  {name:'Сбербанк',pkg:'ru.sberbankmobile',icon:'🏦'},
+  {name:'Тинькофф',pkg:'com.idamob.tinkoff.android',icon:'💳'},
+  {name:'Яндекс Go',pkg:'ru.yandex.taxi',icon:'🚕'},
+  {name:'2ГИС',pkg:'ru.dublgis.dgismobile',icon:'📍'},
+  {name:'Госуслуги',pkg:'ru.gosuslugi',icon:'🏛️'},
+  {name:'NekoBox',pkg:'moe.nb4a',icon:'🐱'},
+  {name:'Element',pkg:'im.vector.app',icon:'🔐'},
+  {name:'Vaultwarden',pkg:'com.x8bit.bitwarden',icon:'🔑'},
+  {name:'VLC',pkg:'org.videolan.vlc',icon:'🎞️'},
+];
+
+let apps = [];
+let currentTab = 'all';
+let sheetPkg = null;
+
+function initApps(rawList) {
+  apps = rawList.map(a => ({
+    ...a, mode:'allow',
+    schedFrom:'22:00', schedTo:'07:00',
+    schedDays:[0,1,2,3,4,5,6]
+  }));
+  renderList();
+}
+
+async function loadInstalledApps() {
+  try {
+    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+      const result = await window.Capacitor.Plugins.InstalledApps.getInstalledApps();
+      return result.apps
+        .filter(a => a.packageName)
+        .sort((a,b) => (a.name||a.packageName).localeCompare(b.name||b.packageName, 'ru'))
+        .map(a => ({
+          name: a.name || a.packageName,
+          pkg: a.packageName,
+          icon: a.icon ? `<img src="data:image/png;base64,${a.icon}" style="width:100%;height:100%;border-radius:8px;object-fit:cover;">` : '📱'
+        }));
+    }
+  } catch(e) { console.log('Native plugin unavailable:', e); }
+  return null;
+}
+
+async function init() {
+  document.getElementById('app-list').innerHTML = `
+    <div class="empty">
+      <div class="empty-icon" style="animation:float 1s ease-in-out infinite">🐱</div>
+      <div class="empty-text" style="margin-top:8px">Загружаем приложения...</div>
+    </div>`;
+  const native = await loadInstalledApps();
+  initApps(native && native.length ? native : MOCK_APPS);
+}
+
+document.addEventListener('deviceready', init);
+document.addEventListener('DOMContentLoaded', () => {
+  if (!window.Capacitor || !window.Capacitor.isNativePlatform()) init();
+});
+
+// ── RENDER ──
+function renderList() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const list = document.getElementById('app-list');
+  const filtered = apps.filter(a => {
+    const ms = a.name.toLowerCase().includes(q) || a.pkg.toLowerCase().includes(q);
+    const mt = currentTab==='all' || a.mode===currentTab;
+    return ms && mt;
+  });
+
+  document.getElementById('s-total').textContent = apps.length;
+  document.getElementById('s-allow').textContent = apps.filter(a=>a.mode==='allow').length;
+  document.getElementById('s-block').textContent = apps.filter(a=>a.mode==='block').length;
+  document.getElementById('s-sched').textContent = apps.filter(a=>a.mode==='schedule').length;
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Ничего не найдено</div></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map((a,i) => {
+    let badge, modeClass='';
+    if (a.mode==='allow') badge=`<span class="badge badge-allow">✅ ALLOWED</span>`;
+    else if (a.mode==='block') { badge=`<span class="badge badge-block">🚫 BLOCKED</span>`; modeClass='m-block'; }
+    else { badge=`<span class="badge badge-sched">🕐 ${a.schedFrom} – ${a.schedTo}</span>`; modeClass='m-schedule'; }
+
+    return `
+    <div class="app-item ${modeClass}" style="animation-delay:${i*0.025}s">
+      <div class="app-icon">${a.icon}</div>
+      <div class="app-info">
+        <div class="app-name">${a.name}</div>
+        <div class="app-pkg">${a.pkg}</div>
+        ${badge}
+      </div>
+      <div class="mode-btns">
+        <button class="mode-btn ${a.mode==='allow'?'on-allow':''}" title="Разрешить" onclick="setMode('${a.pkg}','allow')">✅</button>
+        <button class="mode-btn ${a.mode==='block'?'on-block':''}" title="Заблокировать" onclick="setMode('${a.pkg}','block')">🚫</button>
+        <button class="mode-btn ${a.mode==='schedule'?'on-sched':''}" title="Расписание" onclick="openSheet('${a.pkg}')">🕐</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setMode(pkg, mode) {
+  const a = apps.find(x=>x.pkg===pkg);
+  if (a) { a.mode=mode; renderList(); }
+}
+
+function setTab(tab, el) {
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderList();
+}
+
+// ── SCHEDULE SHEET ──
+function openSheet(pkg) {
+  const a = apps.find(x=>x.pkg===pkg);
+  if (!a) return;
+  sheetPkg = pkg;
+
+  document.getElementById('sh-icon').textContent = a.icon;
+  document.getElementById('sh-name').textContent = a.name;
+  document.getElementById('sh-pkg').textContent = a.pkg;
+  document.getElementById('sh-from').value = a.schedFrom;
+  document.getElementById('sh-to').value = a.schedTo;
+
+  const daysRow = document.getElementById('sh-days');
+  daysRow.innerHTML = DAYS_LABELS.map((d,i) =>
+    `<button class="day-btn ${a.schedDays.includes(i)?'on':''}" onclick="toggleDay(${i})">${d}</button>`
+  ).join('');
+
+  document.getElementById('sched-overlay').classList.add('show');
+  document.getElementById('sched-sheet').classList.add('show');
+}
+
+function toggleDay(idx) {
+  const a = apps.find(x=>x.pkg===sheetPkg);
+  if (!a) return;
+  const i = a.schedDays.indexOf(idx);
+  if (i===-1) a.schedDays.push(idx); else a.schedDays.splice(i,1);
+  document.querySelectorAll('#sh-days .day-btn').forEach((btn,j) => {
+    btn.classList.toggle('on', a.schedDays.includes(j));
+  });
+}
+
+function saveSheet() {
+  const a = apps.find(x=>x.pkg===sheetPkg);
+  if (!a) return;
+  a.schedFrom = document.getElementById('sh-from').value;
+  a.schedTo = document.getElementById('sh-to').value;
+  a.mode = 'schedule';
+  closeSheet();
+  renderList();
+  showToast('🕐 Расписание сохранено');
+}
+
+function closeSheet() {
+  document.getElementById('sched-overlay').classList.remove('show');
+  document.getElementById('sched-sheet').classList.remove('show');
+  sheetPkg = null;
+}
+
+// ── JSON EXPORT ──
+function generateJson() {
+  const blocked = apps.filter(a=>a.mode==='block').map(a=>a.pkg);
+  const scheduled = apps.filter(a=>a.mode==='schedule');
+  if (!blocked.length && !scheduled.length)
+    return JSON.stringify({"_comment":"Нет ограничений — все приложения разрешены"},null,2);
+
+  const rules = [];
+  // group scheduled by same time+days
+  const groups = {};
+  scheduled.forEach(a => {
+    const key = `${a.schedFrom}|${a.schedTo}|${[...a.schedDays].sort().join(',')}`;
+    if (!groups[key]) groups[key]={from:a.schedFrom,to:a.schedTo,pkgs:[]};
+    groups[key].pkgs.push(a.pkg);
+  });
+  Object.values(groups).forEach(g => rules.push({process_name:g.pkgs,time_range:[g.from,g.to],outbound:"block"}));
+  if (blocked.length) rules.push({process_name:blocked,outbound:"block"});
+
+  return JSON.stringify({outbounds:[{type:"block",tag:"block"}],route:{rules}},null,2);
+}
+
+function openExport() {
+  document.getElementById('json-output').textContent = generateJson();
+  document.getElementById('export-modal').classList.add('show');
+}
+function closeModal() { document.getElementById('export-modal').classList.remove('show'); }
+function closeExport(e) { if(e.target===document.getElementById('export-modal')) closeModal(); }
+function copyJson() {
+  const text = document.getElementById('json-output').textContent;
+  navigator.clipboard.writeText(text).then(()=>showToast('✓ Скопировано!')).catch(()=>{
+    const el=document.createElement('textarea');el.value=text;
+    document.body.appendChild(el);el.select();document.execCommand('copy');
+    document.body.removeChild(el);showToast('✓ Скопировано!');
+  });
+}
+function showToast(msg) {
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+</script>
+</body>
+</html>

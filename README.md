@@ -1,2 +1,35 @@
 # IPfirewallNeko
-Firewall UI for NekoBox: block apps or set time-based schedules, exports sing-box JSON config
+
+Менеджер доступа приложений для Android. Генерирует конфигурацию для [NekoBox](https://github.com/MatsuriDayo/NekoBoxForAndroid) (sing-box) с блокировкой по приложениям и расписанию.
+
+## Возможности
+
+- 📋 Список всех установленных приложений с иконками
+- ✅ Три режима для каждого приложения: Разрешить / Заблокировать / По расписанию
+- 🕐 Расписание блокировки с выбором времени и дней недели
+- 📤 Экспорт готового JSON-фрагмента для вставки в sing-box
+
+## Сборка APK через GitHub Actions
+
+1. Форкни репозиторий
+2. Перейди в **Actions** → **Build APK** → **Run workflow**
+3. После завершения скачай APK из **Artifacts**
+
+## Установка на телефон
+
+1. Скачай `nekoblock-debug.apk`
+2. Включи «Установка из неизвестных источников»
+3. Установи APK
+
+## Использование с NekoBox
+
+1. Настрой нужные приложения в IPfirewallNeko
+2. Нажми **ЭКСПОРТ JSON**
+3. Скопируй JSON
+4. В NekoBox: Настройки → Конфигурация sing-box → вставь JSON → Сохранить
+5. Переподключи VPN
+
+## Требования
+
+- Android 7.0+
+- NekoBox с включённым TUN-режимом
