@@ -1,0 +1,80 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build www
+        run: node build.js
+
+      - name: Install Capacitor CLI
+        run: npm install -g @capacitor/cli
+
+      - name: Add Android platform
+        run: npx cap add android || echo "Android already added"
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Copy InstalledApps plugin
+        run: |
+          PLUGIN_DIR="android/app/src/main/java/org/nekoblock/installedapps"
+          mkdir -p "$PLUGIN_DIR"
+          cp android-plugin/src/main/java/org/nekoblock/installedapps/InstalledAppsPlugin.java "$PLUGIN_DIR/"
+
+      - name: Register plugin in MainActivity
+        run: |
+          MAIN="android/app/src/main/java/org/nekoblock/app/MainActivity.java"
+          cat > "$MAIN" << 'JAVA'
+          package org.nekoblock.app;
+
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+          import org.nekoblock.installedapps.InstalledAppsPlugin;
+
+          public class MainActivity extends BridgeActivity {
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+              registerPlugin(InstalledAppsPlugin.class);
+              super.onCreate(savedInstanceState);
+            }
+          }
+          JAVA
+
+      - name: Grant gradlew execute permission
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: nekoblock-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
