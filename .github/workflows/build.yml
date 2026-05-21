@@ -24,6 +24,11 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
+
       - name: Install dependencies
         run: npm install
 
@@ -53,20 +58,40 @@ jobs:
           PKG=$(echo "$PKG_DIR" | sed 's|.*java/||' | tr '/' '.')
           echo "Package: $PKG"
           cat > "$MAIN" << JAVA
-          package $PKG;
+package $PKG;
 
-          import android.os.Bundle;
-          import com.getcapacitor.BridgeActivity;
-          import org.nekoblock.installedapps.InstalledAppsPlugin;
+import android.os.Bundle;
+import com.getcapacitor.BridgeActivity;
+import org.nekoblock.installedapps.InstalledAppsPlugin;
 
-          public class MainActivity extends BridgeActivity {
-          @Override
-          public void onCreate(Bundle savedInstanceState) {
-          registerPlugin(InstalledAppsPlugin.class);
-          super.onCreate(savedInstanceState);
-          }
-          }
-          JAVA
+public class MainActivity extends BridgeActivity {
+  @Override
+  public void onCreate(Bundle savedInstanceState) {
+    registerPlugin(InstalledAppsPlugin.class);
+    super.onCreate(savedInstanceState);
+  }
+}
+JAVA
 
       - name: Grant gradlew execute permission
-        run: chmod +x
+        run: |
+          if [ -f "android/gradlew" ]; then
+            chmod +x android/gradlew
+          else
+            echo "gradlew not found, generating..."
+            cd android
+            gradle wrapper --gradle-version 8.2
+            chmod +x gradlew
+          fi
+
+      - name: Build debug APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: IPfirewallNeko-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
