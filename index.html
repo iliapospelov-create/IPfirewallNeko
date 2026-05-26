@@ -449,25 +449,40 @@ function closeSheet() {
 
 // ── JSON EXPORT ──
 function generateJson() {
-  const blocked = apps.filter(a=>a.mode==='block').map(a=>a.pkg);
-  const scheduled = apps.filter(a=>a.mode==='schedule');
+  const blocked = apps.filter(a => a.mode === 'block').map(a => a.pkg);
+  const scheduled = apps.filter(a => a.mode === 'schedule');
+
   if (!blocked.length && !scheduled.length)
-    return JSON.stringify({"_comment":"Нет ограничений — все приложения разрешены"},null,2);
+    return JSON.stringify({"_comment": "Нет ограничений — все приложения разрешены"}, null, 2);
 
   const rules = [];
-  // group scheduled by same time+days
+
+  // Группируем приложения с расписанием по одинаковому времени
   const groups = {};
   scheduled.forEach(a => {
     const key = `${a.schedFrom}|${a.schedTo}|${[...a.schedDays].sort().join(',')}`;
-    if (!groups[key]) groups[key]={from:a.schedFrom,to:a.schedTo,pkgs:[]};
+    if (!groups[key]) groups[key] = {from: a.schedFrom, to: a.schedTo, pkgs: []};
     groups[key].pkgs.push(a.pkg);
   });
-  Object.values(groups).forEach(g => rules.push({process_name:g.pkgs,time_range:[g.from,g.to],outbound:"block"}));
-  if (blocked.length) rules.push({process_name:blocked,outbound:"block"});
+  Object.values(groups).forEach(g => rules.push({
+    package_name: g.pkgs,
+    time_range: [g.from, g.to],
+    action: "reject"
+  }));
 
-  return JSON.stringify({outbounds:[{type:"block",tag:"block"}],route:{rules}},null,2);
+  if (blocked.length) rules.push({
+    package_name: blocked,
+    action: "reject"
+  });
+
+  return JSON.stringify({
+    route: {
+      find_process: true,
+      rules
+    }
+  }, null, 2);
 }
-
+  
 function openExport() {
   document.getElementById('json-output').textContent = generateJson();
   document.getElementById('export-modal').classList.add('show');
